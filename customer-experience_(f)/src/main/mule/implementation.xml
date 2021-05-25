@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:complaints-api="http://www.mulesoft.org/schema/mule/complaints-api" xmlns:complaints-system-api="http://www.mulesoft.org/schema/mule/complaints-system-api"
+	xmlns:customer-system-api="http://www.mulesoft.org/schema/mule/customer-system-api"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/customer-system-api http://www.mulesoft.org/schema/mule/customer-system-api/current/mule-customer-system-api.xsd
+http://www.mulesoft.org/schema/mule/complaints-system-api http://www.mulesoft.org/schema/mule/complaints-system-api/current/mule-complaints-system-api.xsd
+http://www.mulesoft.org/schema/mule/complaints-api http://www.mulesoft.org/schema/mule/complaints-api/current/mule-complaints-api.xsd">
+	
+	<customer-system-api:config name="Customer_System_API_Config" doc:name="Customer-System-API Config" doc:id="fdb567ff-0fbc-46f6-ad15-cddfdfc4feb2" property_host="grp1-customer.us-e2.cloudhub.io" property_port="80" property_protocol="HTTP" />
+	<complaints-system-api:config name="Complaints_system_api_Config" doc:name="Complaints-system-api Config" doc:id="b28a7149-41e1-4cd6-be8f-c4daf489cec9" property_host="grp1-complaint.us-e2.cloudhub.io" property_port="80" property_protocol="HTTP" />
+	<complaints-api:config name="ComplaintsAPI_Config" doc:name="ComplaintsAPI Config" doc:id="e92dcad1-b346-49a2-ad76-8de22de91235" property_host="custcomplaints-process-api.us-e2.cloudhub.io" property_port="80" property_protocol="HTTP" property_basePath="/api" />
+	<flow name="loginFlow" doc:id="e07f07be-fa31-489b-a048-ecc9ab98e72e" >
+		<ftp:read doc:name="Read Login" doc:id="baf6c66d-efba-4cdc-bd21-65abaf772620" config-ref="FTP_Config" path="login.html"/>
+	</flow>
+	<flow name="complaintsFlow" doc:id="b2f99f24-6c20-46cb-b308-f754416060d7" >
+		<ee:transform doc:name="Binary to JSON" doc:id="8e017e2b-03a1-49ad-8c1a-40341152b85b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	username: payload.username,
+	password: payload.password,
+	action: payload.action
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="loginData" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	username: payload.username,
+	password: payload.password,
+	action: payload.action
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<customer-system-api:get-a-customer-detail-by-id doc:name="Get a Customer Detail By ID" doc:id="cd11ae47-6dc9-4d81-a901-d3d96e2ade33" config-ref="Customer_System_API_Config" cid="#[payload.username]"/>
+		<ee:transform doc:name="Validate" doc:id="94c36bfa-e2c4-436e-8a05-ea38517278a5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+Valid: if (payload.phone == vars.loginData.password) "valid" else "invalid"]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="customerData" ><![CDATA[payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="4e0078ee-be9f-4226-8333-5052a46316cb" >
+			<when expression='#[payload.Valid == "valid"]'>
+				<flow-ref doc:name="actionSub_Flow" doc:id="d5299b3e-9335-484c-b308-a74dde422e4c" name="actionSub_Flow"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="30767864-073d-4ea1-83f6-5c76966fa9e6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Invalid"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="actionSub_Flow" doc:id="79a0a639-f5eb-4bc4-9e9c-0f2da1a7d9c6" >
+		<choice doc:name="Choice" doc:id="47e3b03b-6538-4fa8-8b3b-c13512912266" >
+			<when expression='#[vars.loginData.action == "Get"]' >
+				<complaints-system-api:get-all-complaints doc:name="GET all Complaints." doc:id="56f1795b-5d07-4799-9798-379e5c2de744" config-ref="Complaints_system_api_Config" customer-number="#[vars.customerData.customerNumber]"/>
+				<ee:transform doc:name="Transform Message" doc:id="bb342796-4b86-4d81-9663-0332a2e06487" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map {
+	CustomerNumber: $.customerNumber,
+	ComplaintID: $.complaintID,
+	ComplaintDate: $.complaintDate,
+	ComplaintStatus: $.complaintStatus,
+	OrderID: $.orderID,
+	ProductID: $.productID,
+	OrderDate: $.orderDate,
+	ComplaintDescription: $.complaintDescription,
+	ComplaintResponse: $.complaintResponse
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression='#[vars.loginData.action == "Update"]' >
+				<ftp:read doc:name="Read Update" doc:id="24348a29-20f1-458d-8f53-fe25f8f01649" config-ref="FTP_Config" path="update.html" />
+			</when>
+			<when expression='#[vars.loginData.action == "Post"]' >
+				<ftp:read doc:name="Read Post" doc:id="385cca8e-0b70-4708-b045-622cb49bb094" config-ref="FTP_Config" path="post.html" />
+			</when>
+			<when expression='#[vars.loginData.action == "Delete"]' >
+				<ftp:read doc:name="Read Delete" doc:id="940341b3-253c-4ae3-a215-4cd9618fe457" config-ref="FTP_Config" path="delete.html" />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="50a31dce-3041-4bd1-9f30-f3408b216cb9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "Some error occurred"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="postFlow" doc:id="0c380384-a29e-497f-b214-c68a07d4e04c" >
+		<complaints-api:post-a-complaint doc:name="POST a Complaint." doc:id="c234cea0-6876-4507-a536-bffefaac1601" config-ref="ComplaintsAPI_Config">
+			<complaints-api:post-a-complaint-request-data ><![CDATA[#[{
+	customerNumber: payload.customerNumber as Number,
+	orderID: payload.orderID as Number,
+	orderDate: payload.orderDate as Date,
+	productID: payload.productID,
+	complaintDescription: payload.complaintDescription
+}]]]></complaints-api:post-a-complaint-request-data>
+		</complaints-api:post-a-complaint>
+		<ee:transform doc:name="Transform Message" doc:id="de07592a-58a5-457d-8132-40683882043f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="deleteFlow" doc:id="53727f0a-8438-422e-9306-3f3d124bc2fe" >
+		<ee:transform doc:name="Transforming Binary to JSON" doc:id="7167b3ee-c531-4ef5-96d3-ff8021ed72e1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	customerNumber: payload.customerNumber as Number,
+	complaintID: payload.complaintID as Number
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<complaints-api:delete-complaint-by-complaint-id doc:name="DELETE Complaint by Complaint-ID." doc:id="298f5e1b-ab4e-410d-ada6-def34d712e38" complaint-id="#[payload.complaintID]" config-ref="ComplaintsAPI_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="663887f1-0ddd-4f9d-aea9-933ae304e361" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="updateFlow" doc:id="e4b87b78-dc4f-42a1-b430-c05ab205c63e" >
+		<ee:transform doc:name="Transforming Binary to JSON" doc:id="f902f6f8-df85-4be8-bf42-c8a521946f42" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	customerNumber: payload.customerNumber as Number,
+	complaintID: payload.complaintID as Number,
+	orderID: payload.orderID as Number default null,
+	orderDate: if ((payload.orderDate as String)=="") null else (payload.orderDate as String),
+	productID: if ((payload.productID)=="") null else (payload.productID),
+	complaintDescription: if ((payload.complaintDescription)=="") null else (payload.complaintDescription)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Filter for Null values" doc:id="6d244b40-dc05-400e-8200-51c388e18c76" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload filterObject ((value) -> value != null)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<complaints-api:patch-complaint-by-complaint-id doc:name="PATCH Complaint by Complaint-ID." doc:id="6373ccb7-06ad-44f0-8582-d2a2a80a5b1d" config-ref="ComplaintsAPI_Config" complaint-id="#[payload.complaintID]"/>
+		<ee:transform doc:name="Transform Message" doc:id="b796baa3-a390-43ea-98ea-2c3243f00d85" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

@@ -1,0 +1,9 @@
+http:
+  host: "0.0.0.0"
+  port: "8081"
+  
+ftp:
+  host: "bucket-2cf6892d-c460-4047-a804-456f5b202fc1-fsbucket.services.clever-cloud.com"
+  port: "21"
+  user: "u2cf6892dc46"
+  password: "E5qGjPFyPtgitMkc"

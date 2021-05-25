@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	
+	<http:listener-config name="customer-experience-api-httpListenerConfig">
+        <http:listener-connection host="${http.host}" port="${http.port}" />
+    </http:listener-config>
+    
+    <ftp:config name="FTP_Config" doc:name="FTP Config" doc:id="7d6885af-bc55-4995-965e-5bee760197f3" >
+		<ftp:connection host="${ftp.host}" username="${ftp.user}" password="${ftp.password}" port="${ftp.port}"/>
+	</ftp:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="9c4d7a89-4b8d-4cd1-9565-de0bce3f6d31" file="customer-experience-DEV.yaml" />
+	<configuration doc:name="Configuration" doc:id="8878da9c-a73b-4abd-9f55-b744cecb172b" defaultErrorHandler-ref="globalError_Handler" />
+	<error-handler name="globalError_Handler" doc:id="d9e6922d-a713-4bb3-8155-090fb539d84c" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5bfa4584-95b2-4168-ac19-586659ebe4d1" type="COMPLAINTS-SYSTEM-API:CONNECTIVITY">
+			<set-payload value='#["Error in Complaints System API connectivity"]' doc:name="Set Payload" doc:id="bde9f51f-a865-4894-b2a7-5e070bbfdce3" />
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="61442e9a-fac3-4a06-a6ed-aeef1346dde3" type="COMPLAINTS-API:CONNECTIVITY">
+			<set-payload value='#["Error in Complaints Process API connectivity"]' doc:name="Set Payload" doc:id="b63b90c1-005e-438d-8e80-93586b621b1c" />
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="644303f4-f90a-4238-9929-3350843c759c" type="FTP:CONNECTIVITY">
+			<set-payload value='#["Error in FTP connectivity"]' doc:name="Set Payload" doc:id="3ccc834e-44ec-4fc9-a11b-af3b6cbc31bf" />
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e2b2b5a3-c799-4ba9-87f6-7118edeae4f9" type="CUSTOMER-SYSTEM-API:CONNECTIVITY" >
+			<set-payload value='#["Error in Customer API connectivity"]' doc:name="Set Payload" doc:id="09f8024f-6637-4320-8d3b-0d49c4323452" />
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9636a884-5796-4c9a-85a7-7a3d5611d6ae" type="ANY">
+			<set-payload value='#["Some error occurred. Details : " ++ error.description]' doc:name="Set Payload" doc:id="0d2fb196-efb3-49d2-a73e-1ccd5634a91c" />
+		</on-error-propagate>
+	</error-handler>
+	
+	
+</mule>

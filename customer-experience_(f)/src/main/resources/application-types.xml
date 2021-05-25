@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="loginData" format="json">
+      <types:shape format="weave" example="examples/loginmeta.json"><![CDATA[%dw 2.0
+
+type loginData = {|
+  username: String, 
+  password: String, 
+  action: String
+|} {"example": "{\\\"username\\\":\\\"10001\\\",\\\"password\\\":\\\"956464946\\\",\\\"action\\\":\\\"Get\\\"}"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="deleteData" format="json">
+      <types:shape format="weave" example="examples/deleteMetadata.json"><![CDATA[%dw 2.0
+
+type deleteData = {|
+  customerNumber: String, 
+  complaintID: String
+|} {"example": "{\\\"customerNumber\\\":\\\"10001\\\",\\\"complaintID\\\":\\\"100020\\\"}"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="updateData" format="json">
+      <types:shape format="weave" example="examples/updateMetadata.json"><![CDATA[%dw 2.0
+
+type updateData = {|
+  customerNumber: String, 
+  complaintID: String, 
+  orderID: String, 
+  orderDate: String, 
+  productID: String, 
+  complaintDescription: String
+|} {"example": "{\\\"customerNumber\\\":\\\"10001\\\",\\\"complaintID\\\":\\\"100002\\\",\\\"orderID\\\":\\\"101\\\",\\\"orderDate\\\":\\\"2020-04-02\\\",\\\"productID\\\":\\\"P1001\\\",\\\"complaintDescription\\\":\\\"Some\\\"}"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#8e017e2b-03a1-49ad-8c1a-40341152b85b">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="loginData"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#7167b3ee-c531-4ef5-96d3-ff8021ed72e1">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="deleteData"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#f902f6f8-df85-4be8-bf42-c8a521946f42">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="updateData"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>
